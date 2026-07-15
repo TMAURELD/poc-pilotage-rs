@@ -1,0 +1,20 @@
+# --- Fichiers lourds / générés, à NE PAS versionner ---
+# L'export figé du dashboard (5,7 Mo) : ce n'est pas le code de l'app
+Outil Pilotage RS - Sorties Caisses 2025 vs 2026.html
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Secrets — ne JAMAIS committer d'identifiants ou de tokens
+*.env
+.env
+secrets.toml
+.streamlit/secrets.toml
+
+# Verrous Office / OS
+.~lock.*#
+.DS_Store
+Thumbs.db

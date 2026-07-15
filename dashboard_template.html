@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Outil Pilotage RS — Sorties Caisses Jan–Mai 2025 vs 2026</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+:root{--bg:#f4f6f9;--card:#fff;--ink:#1a2332;--mut:#64748b;--line:#e2e8f0;--blue:#2563eb;--green:#16a34a;--red:#dc2626;--amber:#d97706;}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--ink);font-size:14px}
+header{background:#0f172a;color:#fff;padding:14px 24px}
+header h1{font-size:17px;font-weight:600}
+header .sub{color:#94a3b8;font-size:12px;margin-top:2px}
+.fbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:#fff;border-bottom:1px solid var(--line);padding:10px 24px;position:sticky;top:0;z-index:50}
+.fbar label{font-size:12px;color:var(--mut)}
+select,input[type=text]{padding:6px 10px;border:1px solid var(--line);border-radius:6px;font-size:13px;background:#fff;color:var(--ink)}
+button.rst{padding:6px 12px;border:1px solid var(--line);border-radius:6px;background:#fff;cursor:pointer}
+.chips{display:flex;gap:8px;flex-wrap:wrap;padding:8px 24px 0}
+main{padding:16px 24px;max-width:1500px;margin:0 auto}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:12px;margin-bottom:18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:13px 15px}
+.card .lbl{font-size:12px;color:var(--mut);margin-bottom:4px}
+.card .val{font-size:21px;font-weight:700}
+.card .delta{font-size:13px;margin-top:2px}
+.up{color:var(--green)}.down{color:var(--red)}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:18px}
+.panel h2{font-size:15px;margin-bottom:12px}
+.panel h2 .hint{font-weight:400;color:var(--mut);font-size:12px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;color:var(--mut);font-weight:600;padding:8px 9px;border-bottom:2px solid var(--line);white-space:nowrap}
+th[data-k]{cursor:pointer;user-select:none}
+th[data-k]:hover{color:var(--blue)}
+th.num,td.num{text-align:right}
+td{padding:7px 9px;border-bottom:1px solid var(--line)}
+tbody tr:hover{background:#f8fafc}
+tfoot td{font-weight:700;border-top:2px solid var(--line);background:#f8fafc}
+tr.clickable{cursor:pointer}
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600}
+.b-red{background:#fee2e2;color:#b91c1c}.b-amber{background:#fef3c7;color:#b45309}.b-green{background:#dcfce7;color:#15803d}.b-gray{background:#e2e8f0;color:#475569}.b-blue{background:#dbeafe;color:#1d4ed8;cursor:pointer}
+.chart-box{position:relative;height:280px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media(max-width:1100px){.grid2{grid-template-columns:1fr}}
+.footnote{color:var(--mut);font-size:11px;margin-top:8px}
+.toolbar{display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;align-items:center}
+.muted{color:var(--mut);font-size:12px}
+#modal{display:none;position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:100;overflow:auto;padding:30px 16px}
+#modal .inner{background:#fff;border-radius:12px;max-width:1050px;margin:0 auto;padding:22px}
+#modal .close{float:right;border:none;background:#e2e8f0;border-radius:8px;padding:6px 14px;cursor:pointer;font-size:14px}
+.gap{color:var(--mut)}
+.pill-toggle{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.pill-toggle button{border:none;background:#fff;padding:5px 12px;cursor:pointer;font-size:12px;color:var(--mut)}
+.pill-toggle button.on{background:var(--blue);color:#fff}
+</style>
+</head>
+<body>
+<header>
+  <h1>Outil Pilotage RS — Sorties Caisses janvier–mai, 2025 vs 2026</h1>
+  <div class="sub">Du macro au magasin : enseignes, catégories, secteurs → vendeurs → magasins → fiche détail · montants TTC prix consommateur · cliquez sur les en-têtes de colonnes pour trier · périmètre : enseignes d'au moins 5 PDV et actives en 2026 — toutes les entités Leclerc regroupées · hors secteur DCN · exclues : enseignes marginales + Cultura et NOSOLI (référencements perdus)</div>
+</header>
+<div class="fbar">
+  <label>Enseigne</label><select id="fG1"><option value="">Toutes</option></select>
+  <label>Catégorie</label><select id="fCat"><option value="">Toutes</option></select>
+  <label>Secteur</label><select id="fReg"><option value="">Tous</option></select>
+  <label>Vendeur</label><select id="fRep"><option value="">Tous</option></select>
+  <button class="rst" id="fReset">Réinitialiser</button>
+  <span class="pill-toggle" style="margin-left:auto"><button id="vAna" class="on">Analyse</button><button id="vPlan">Plan d'action</button></span>
+</div>
+<div class="chips" id="chips"></div>
+<main id="main"></main>
+<div id="modal"><div class="inner" id="modalInner"></div></div>
+<script>
+const D = /*__DASHBOARD_DATA__*/;
+const MOIS=['Janv','Févr','Mars','Avril','Mai'];
+const F={g1:'',cat:'',reg:'',rep:'',q:''};
+let charts=[]; const TBL={}; let CHART_MODE='tot'; let VIEW='ana';
+const PARAMS={det:40, sous:30, min:200};
+let DONE={}; try{DONE=JSON.parse(localStorage.getItem('rs_done')||'{}');}catch(e){}
+function saveDone(){try{localStorage.setItem('rs_done',JSON.stringify(DONE));}catch(e){}}
+const s25=a=>a.slice(0,5).reduce((x,y)=>x+y,0), s26=a=>a.slice(5).reduce((x,y)=>x+y,0);
+const fmtEUR=v=>new Intl.NumberFormat('fr-FR',{maximumFractionDigits:0}).format(Math.round(v))+' €';
+const fmtK=v=>Math.abs(v)>=1e6?(v/1e6).toLocaleString('fr-FR',{maximumFractionDigits:2})+' M€':(v/1e3).toLocaleString('fr-FR',{maximumFractionDigits:Math.abs(v)<10000?1:0})+' k€';
+function pct(a,b){ if(!a) return b?'nouveau':'—'; return ((b/a-1)*100).toLocaleString('fr-FR',{maximumFractionDigits:1,signDisplay:'always'})+' %'; }
+function pctClass(a,b){ if(!a) return b?'up':''; const e=b/a-1; return e<-0.005?'down':(e>0.005?'up':''); }
+function esc(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function killCharts(){ charts.forEach(c=>c.destroy()); charts=[]; }
+function mkChart(id,cfg){ const el=document.getElementById(id); if(!el)return; charts.push(new Chart(el,cfg)); }
+
+/* ---- périmètre & CA ---- */
+function scoped(){
+  return D.stores.filter(s=>(!F.g1||s.g1===F.g1)&&(!F.reg||s.r===F.reg)&&(!F.rep||s.rep===F.rep));
+}
+function caOf(s){ // [ca25, ca26] en respectant le filtre catégorie
+  if(F.cat){ const v=s.cm[F.cat]; return v?[s25(v),s26(v)]:[0,0]; }
+  let a=0,b=0; for(const c in s.cm){a+=s25(s.cm[c]);b+=s26(s.cm[c]);} return [a,b];
+}
+function caTot(s){ let a=0,b=0; for(const c in s.cm){a+=s25(s.cm[c]);b+=s26(s.cm[c]);} return [a,b]; }
+function cible(vals){ // max( moyenne ; CA du moins performant des 30 % les plus performants )
+  const act=vals.filter(v=>v>0).sort((a,b)=>b-a);
+  if(!act.length) return 0;
+  const seuil=act[Math.ceil(act.length*0.30)-1];
+  const moy=act.reduce((a,b)=>a+b,0)/act.length;
+  return Math.max(moy,seuil);
+}
+/* cibles par enseigne (x categorie), calculees sur le SECTEUR selectionne s'il y en a un, sinon national.
+   Le filtre vendeur ne modifie JAMAIS la cible. Cache par secteur. */
+const CIB_CACHE={};
+function scopeReg(){ // secteur de référence du périmètre : filtre secteur, sinon secteur du vendeur filtré, sinon national
+  if(F.reg) return F.reg;
+  if(F.rep) return D.repRegion[F.rep]||null;
+  return null;
+}
+function getCib(reg){
+  const key=reg||'@NAT';
+  if(CIB_CACHE[key]) return CIB_CACHE[key];
+  const g={}, gc={};
+  for(const s of D.stores){
+    if(reg && s.r!==reg) continue;
+    let tot=0;
+    for(const c in s.cm){ const b=s26(s.cm[c]); tot+=b;
+      if(b>0){ (gc[s.g1]=gc[s.g1]||{}); (gc[s.g1][c]=gc[s.g1][c]||[]).push(b); } }
+    if(tot>0) (g[s.g1]=g[s.g1]||[]).push(tot);
+  }
+  const out={};
+  for(const k in g) out[k]={'':cible(g[k])};
+  for(const k in gc){ out[k]=out[k]||{}; for(const c in gc[k]) out[k][c]=cible(gc[k][c]); }
+  CIB_CACHE[key]=out; return out;
+}
+function cibleOf(s,cat,mode){ // la cible est TOUJOURS celle du secteur du magasin (enseigne x secteur)
+  const c=(cat===undefined)?F.cat:cat;
+  const m=getCib(s.r)[s.g1]||{};
+  return m[c||'']||0;
+}
+/* groupe des magasins scopés par clé -> lignes {n, ca25, ca26, nb, moy, cib, pot} */
+function groupBy(keyFn){
+  const g={};
+  for(const s of scoped()){
+    const [a,b]=caOf(s); if(a+b===0) continue;
+    const k=keyFn(s); if(!g[k]) g[k]={ca25:0,ca26:0,list:[],n25:0};
+    g[k].ca25+=a; g[k].ca26+=b; if(a>0) g[k].n25++; if(b>0) g[k].list.push([b,cibleOf(s)]);
+  }
+  return Object.entries(g).map(([n,v])=>{
+    const nb=v.list.length, moy=nb?v.ca26/nb:0;
+    const cib=nb? v.list.reduce((p,x)=>p+x[1],0)/nb : 0;
+    const moy25=v.n25? v.ca25/v.n25 : 0;
+    return {n,ca25:v.ca25,ca26:v.ca26,nb,nb25:v.n25,dnb:nb-v.n25,moy,moy25,cib,gapm:moy-cib,pot:v.list.reduce((p,x)=>p+Math.max(0,x[1]-x[0]),0)};
+  }).sort((a,b)=>b.ca26-a.ca26);
+}
+function groupCats(){ // par catégorie (indépendant du filtre catégorie pour rester lisible, sauf s'il est actif)
+  const g={};
+  for(const s of scoped()){
+    for(const c in s.cm){
+      if(F.cat && c!==F.cat) continue;
+      const a=s25(s.cm[c]), b=s26(s.cm[c]); if(a+b===0) continue;
+      if(!g[c]) g[c]={ca25:0,ca26:0,list:[],n25:0};
+      g[c].ca25+=a; g[c].ca26+=b; if(a>0) g[c].n25++; if(b>0) g[c].list.push([b,cibleOf(s,c)]);
+    }
+  }
+  return Object.entries(g).map(([n,v])=>{
+    const nb=v.list.length, moy=nb?v.ca26/nb:0;
+    const cib=nb? v.list.reduce((p,x)=>p+x[1],0)/nb : 0;
+    const moy25=v.n25? v.ca25/v.n25 : 0;
+    return {n,ca25:v.ca25,ca26:v.ca26,nb,nb25:v.n25,dnb:nb-v.n25,moy,moy25,cib,gapm:moy-cib,pot:v.list.reduce((p,x)=>p+Math.max(0,x[1]-x[0]),0)};
+  }).sort((a,b)=>b.ca26-a.ca26);
+}
+/* ---- tableaux triables ---- */
+function mkTable(id, headHTML, rows, rowFn, foot){
+  TBL[id]={rows,rowFn};
+  setTimeout(()=>{
+    const t=document.getElementById(id); if(!t) return;
+    t.querySelectorAll('th[data-k]').forEach(th=>{
+      th.onclick=()=>{
+        const k=th.dataset.k, cur=TBL[id].sort||{};
+        const dir=(cur.k===k&&cur.dir===-1)?1:-1; // 1er clic = décroissant
+        TBL[id].sort={k,dir};
+        TBL[id].rows.sort((x,y)=>{
+          const a=x[k], b=y[k];
+          if(typeof a==='string') return dir*String(a).localeCompare(String(b),'fr');
+          return dir*(((a??-Infinity)>(b??-Infinity))?1:-1);
+        });
+        t.querySelector('tbody').innerHTML=TBL[id].rows.map(TBL[id].rowFn).join('');
+        bindRowClicks(t);
+      };
+    });
+    bindRowClicks(t);
+  },0);
+  return `<table id="${id}"><thead>${headHTML}</thead><tbody>${rows.map(rowFn).join('')}</tbody>${foot?'<tfoot>'+foot+'</tfoot>':''}</table>`;
+}
+function bindRowClicks(t){
+  t.querySelectorAll('tr[data-set]').forEach(tr=>tr.onclick=()=>{
+    const [k,v]=JSON.parse(tr.dataset.set); F[k]=v;
+    if(k==='reg'){F.rep='';}
+    syncSelects(); render();
+  });
+  t.querySelectorAll('tr[data-store]').forEach(tr=>tr.onclick=()=>openStore(tr.dataset.store));
+  t.querySelectorAll('tr[data-art]').forEach(tr=>tr.onclick=()=>openArticle(tr.dataset.art));
+}
+const HEAD_DIM=n=>`<tr><th data-k="n">${n}</th><th class="num" data-k="ca25">CA 2025</th><th class="num" data-k="ca26">CA 2026</th><th class="num" data-k="ev">Écart %</th><th class="num" data-k="moy">CA moyen / PDV</th><th class="num" data-k="cib">Cible / PDV</th><th class="num" data-k="gapm">CA moyen vs cible</th><th class="num" data-k="nb">PDV 2026</th><th class="num" data-k="nb25">PDV 2025</th><th class="num" data-k="dnb">Écart PDV</th><th class="num" data-k="pot">Potentiel</th></tr>`;
+function dimRow(setKey){
+  return r=>`<tr class="clickable" data-set='${JSON.stringify([setKey,r.n]).replace(/'/g,"&#39;")}'>
+    <td><b>${esc(r.n)}</b></td><td class="num">${fmtK(r.ca25)}</td><td class="num">${fmtK(r.ca26)}</td>
+    <td class="num ${pctClass(r.ca25,r.ca26)}">${pct(r.ca25,r.ca26)}</td>
+    <td class="num">${fmtEUR(r.moy)}</td><td class="num">${fmtEUR(r.cib)}</td>
+    <td class="num ${r.gapm<0?'down':'up'}">${fmtEUR(r.gapm)}</td><td class="num">${r.nb}</td>
+    <td class="num">${r.nb25}</td><td class="num ${r.dnb<0?'down':(r.dnb>0?'up':'')}">${r.dnb>0?'+':''}${r.dnb}</td>
+    <td class="num">${r.pot>500?fmtK(r.pot):'—'}</td></tr>`;
+}
+function dimFoot(rows, mixNb){ // mixNb=true si le nb PDV se cumule mal (catégories : un PDV compte plusieurs fois)
+  const ca25=rows.reduce((p,r)=>p+r.ca25,0), ca26=rows.reduce((p,r)=>p+r.ca26,0), pot=rows.reduce((p,r)=>p+r.pot,0);
+  const nb=rows.reduce((p,r)=>p+r.nb,0), nb25=rows.reduce((p,r)=>p+r.nb25,0);
+  const cib=nb? rows.reduce((p,r)=>p+r.cib*r.nb,0)/nb : 0;
+  const moy=nb? ca26/nb : 0;
+  const dash='<td class="num">—</td>';
+  return `<tr><td>Total</td><td class="num">${fmtK(ca25)}</td><td class="num">${fmtK(ca26)}</td>
+    <td class="num ${pctClass(ca25,ca26)}">${pct(ca25,ca26)}</td>
+    ${mixNb? dash+dash+dash+dash+dash+dash : `<td class="num">${fmtEUR(moy)}</td><td class="num">${fmtEUR(cib)}</td><td class="num ${moy-cib<0?'down':'up'}">${fmtEUR(moy-cib)}</td><td class="num">${nb}</td><td class="num">${nb25}</td><td class="num ${nb-nb25<0?'down':(nb-nb25>0?'up':'')}">${nb-nb25>0?'+':''}${nb-nb25}</td>`}
+    <td class="num">${fmtK(pot)}</td></tr>`;
+}
+function withEv(rows){ rows.forEach(r=>r.ev=r.ca25?r.ca26/r.ca25-1:(r.ca26?9e9:0)); return rows; }
+
+/* ---- chips & filtres ---- */
+function syncSelects(){
+  fG1.value=F.g1; fCat.value=F.cat; fReg.value=F.reg;
+  fillReps(); fRep.value=F.rep;
+}
+function fillReps(){
+  const cur=F.rep;
+  fRep.innerHTML='<option value="">Tous</option>';
+  Object.keys(D.repRegion).filter(r=>!F.reg||D.repRegion[r]===F.reg).sort()
+    .forEach(r=>fRep.insertAdjacentHTML('beforeend',`<option value="${esc(r)}">${esc(r)}</option>`));
+  fRep.value=cur||'';
+}
+function chips(){
+  const c=[]; const mk=(lbl,val,key)=>`<span class="badge b-blue" data-clear="${key}" title="Retirer ce filtre">${lbl} : ${esc(val)} ✕</span>`;
+  if(F.g1)c.push(mk('Enseigne',F.g1,'g1')); if(F.cat)c.push(mk('Catégorie',F.cat,'cat'));
+  if(F.reg)c.push(mk('Secteur',F.reg,'reg')); if(F.rep)c.push(mk('Vendeur',F.rep,'rep'));
+  document.getElementById('chips').innerHTML=c.length?c.join(' '):'<span class="muted">Aucun filtre — comparaison macro. Cliquez une ligne ou utilisez les filtres pour zoomer.</span>';
+  document.querySelectorAll('#chips [data-clear]').forEach(ch=>ch.onclick=()=>{
+    F[ch.dataset.clear]=''; if(ch.dataset.clear==='reg')F.rep='';
+    syncSelects(); render();});
+}
+
+/* ---- rendu principal ---- */
+function render(){
+  killCharts(); chips();
+  const va=document.getElementById('vAna'), vp=document.getElementById('vPlan');
+  va.classList.toggle('on',VIEW==='ana'); vp.classList.toggle('on',VIEW==='plan');
+  if(VIEW==='plan'){ renderPlan(); return; }
+  const sc=scoped().map(s=>{const [a,b]=caOf(s); return {s,a,b};}).filter(x=>x.a+x.b>0);
+  const ca25=sc.reduce((p,x)=>p+x.a,0), ca26=sc.reduce((p,x)=>p+x.b,0);
+  const act=sc.filter(x=>x.b>0);
+  const moy=act.length?ca26/act.length:0;
+  const cib=act.length? act.reduce((p,x)=>p+cibleOf(x.s),0)/act.length : 0;
+  const pot=act.reduce((p,x)=>p+Math.max(0,cibleOf(x.s)-x.b),0);
+  let h=`<div class="cards">
+    <div class="card"><div class="lbl">CA 2025</div><div class="val">${fmtK(ca25)}</div></div>
+    <div class="card"><div class="lbl">CA 2026</div><div class="val">${fmtK(ca26)}</div>
+      <div class="delta ${pctClass(ca25,ca26)}">${pct(ca25,ca26)} soit ${fmtK(ca26-ca25)}</div></div>
+    <div class="card"><div class="lbl">PDV actifs 2026</div><div class="val">${act.length}</div>
+      <div class="delta muted">${sc.filter(x=>x.a>0).length} en 2025</div></div>
+    <div class="card"><div class="lbl">CA moyen / PDV</div><div class="val">${fmtEUR(moy)}</div></div>
+    <div class="card"><div class="lbl">Cible / PDV</div><div class="val">${fmtEUR(cib)}</div></div>
+    <div class="card"><div class="lbl">Potentiel (PDV sous la cible)</div><div class="val up">${fmtK(pot)}</div></div>
+  </div>`;
+  // évolution mensuelle du périmètre (respecte tous les filtres, dont enseigne x catégorie)
+  const mm=new Array(10).fill(0);
+  for(const x of sc){
+    if(F.cat){ const v=x.s.cm[F.cat]; if(v) for(let i=0;i<10;i++) mm[i]+=v[i]; }
+    else { for(const c in x.s.cm){ const v=x.s.cm[c]; for(let i=0;i<10;i++) mm[i]+=v[i]; } }
+  }
+  const scopeLbl=[F.g1,F.cat,F.reg,F.rep].filter(Boolean).map(esc).join(' × ')||'national, toutes catégories';
+  h+=`<div class="panel"><h2>Sorties caisses mois par mois — ${scopeLbl} <span class="hint">2026 en bleu, 2025 en gris</span></h2>
+    <div class="chart-box" style="height:250px"><canvas id="chScopeM"></canvas></div></div>`;
+
+  // Panneau enseignes
+  if(!F.g1){
+    const rows=withEv(groupBy(s=>s.g1));
+    h+=`<div class="panel"><h2>Par enseigne <span class="hint">cliquer une ligne pour filtrer</span>${chartPot('chG1')}</h2>
+      ${mkTable('tG1',HEAD_DIM('Enseigne'),rows,dimRow('g1'),dimFoot(rows))}
+      <div class="footnote">Cible = max(CA 2026 moyen ; seuil d'entrée du top 30 %), toujours calculée enseigne × secteur : chaque magasin est comparé à sa propre enseigne dans son propre secteur ; la colonne affiche la cible moyenne du mix de la ligne. Potentiel = somme des écarts à la cible des seuls PDV sous la cible.</div></div>`;
+    setTimeout(()=>potChart('chG1',rows.slice(0,12)),0);
+  }
+  // Panneau catégories
+  if(!F.cat){
+    const rows=withEv(groupCats());
+    h+=`<div class="panel"><h2>Par catégorie <span class="hint">cliquer une ligne pour filtrer</span>${chartPot('chCat')}</h2>
+      ${mkTable('tCat',HEAD_DIM('Catégorie'),rows,dimRow('cat'),dimFoot(rows,true))}
+      <div class="footnote">Nb PDV = points de vente vendant la catégorie en 2026. Un emplacement « collection » est prévu sous ce niveau quand la donnée sera disponible.</div></div>`;
+    setTimeout(()=>potChart('chCat',rows.slice(0,12)),0);
+  }
+  // Panneau secteurs / vendeurs
+  if(!F.reg){
+    const rows=withEv(groupBy(s=>s.r));
+    h+=`<div class="panel"><h2>Par secteur <span class="hint">cliquer une ligne pour filtrer</span>${chartPot('chReg')}</h2>
+      ${mkTable('tReg',HEAD_DIM('Secteur'),rows,dimRow('reg'),dimFoot(rows))}</div>`;
+    setTimeout(()=>potChart('chReg',rows),0);
+  } else if(!F.rep){
+    const rows=withEv(groupBy(s=>s.rep));
+    h+=`<div class="panel"><h2>Par vendeur — secteur ${esc(F.reg)} <span class="hint">cliquer une ligne pour filtrer</span>${chartPot('chRep')}</h2>
+      ${mkTable('tRep',HEAD_DIM('Vendeur'),rows,dimRow('rep'),dimFoot(rows))}</div>`;
+    setTimeout(()=>potChart('chRep',rows),0);
+  }
+  h+=articlesPanel();
+  h+=storesPanel(sc);
+  document.getElementById('main').innerHTML=h;
+  const mmLbl=MOIS.map((mo,i)=>[mo, mm[i]? ((mm[5+i]/mm[i]-1)*100).toLocaleString('fr-FR',{maximumFractionDigits:1,signDisplay:'always'})+' %' : (mm[5+i]?'nouveau':'—')]);
+  mkChart('chScopeM',{type:'bar',data:{labels:mmLbl,datasets:[
+    {label:'2025',data:mm.slice(0,5),backgroundColor:'#94a3b8'},
+    {label:'2026',data:mm.slice(5),backgroundColor:'#2563eb'}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{tooltip:{callbacks:{label:c=>c.dataset.label+' : '+fmtEUR(c.parsed.y)}}},
+      scales:{y:{ticks:{callback:v=>fmtK(v)}}}}});
+}
+function chartPot(id){ return `</h2><div style="margin:6px 0"><span class="pill-toggle"><button data-cm="tot" class="${CHART_MODE==='tot'?'on':''}">CA 2025 vs 2026</button><button data-cm="pdv" class="${CHART_MODE==='pdv'?'on':''}">CA / PDV 2025 vs 2026 vs cible</button></span></div><div class="chart-box" style="height:230px;margin-bottom:10px"><canvas id="${id}"></canvas></div><h2 style="display:none">`; }
+function potChart(id,rows){
+  const ds = CHART_MODE==='pdv' ? [
+    {label:'CA / PDV 2026',data:rows.map(r=>r.moy),backgroundColor:'#2563eb'},
+    {label:'CA / PDV 2025',data:rows.map(r=>r.moy25),backgroundColor:'#94a3b8'},
+    {label:'Cible / PDV',data:rows.map(r=>r.cib),backgroundColor:'#fbbf24'}
+  ] : [
+    {label:'CA 2026',data:rows.map(r=>r.ca26),backgroundColor:'#2563eb'},
+    {label:'CA 2025',data:rows.map(r=>r.ca25),backgroundColor:'#94a3b8'}];
+  mkChart(id,{type:'bar',data:{labels:rows.map(r=>r.n),datasets:ds},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{tooltip:{callbacks:{label:c=>c.dataset.label+' : '+fmtEUR(c.parsed.y)}}},
+      scales:{y:{ticks:{callback:v=>fmtK(v)}},x:{ticks:{font:{size:10}}}}}});
+}
+/* ---- articles (si catégorie sélectionnée) ---- */
+function articlesPanel(){
+  if(!F.cat) return '';
+  const reps=new Set(Object.keys(D.repRegion).filter(r=>(!F.reg||D.repRegion[r]===F.reg)&&(!F.rep||r===F.rep)));
+  const arts={};
+  for(const rep in D.repGA){
+    if(!reps.has(rep)) continue;
+    for(const k in D.repGA[rep]){
+      const i2=k.indexOf('|'); if(F.g1&&k.slice(0,i2)!==F.g1) continue;
+      const a=k.slice(i2+1); if((D.artCat[a]||'')!==F.cat) continue;
+      if(!arts[a])arts[a]=[0,0];
+      arts[a][0]+=D.repGA[rep][k][0]; arts[a][1]+=D.repGA[rep][k][1];
+    }
+  }
+  const rows=withEv(Object.entries(arts).map(([n,v])=>({n,ca25:v[0],ca26:v[1],d:v[1]-v[0]}))
+    .filter(r=>r.ca25+r.ca26!==0).sort((a,b)=>b.ca26-a.ca26));
+  const head=`<tr><th data-k="n">Article</th><th class="num" data-k="ca25">CA 2025</th><th class="num" data-k="ca26">CA 2026</th><th class="num" data-k="d">Écart €</th><th class="num" data-k="ev">Écart %</th></tr>`;
+  const rowFn=r=>`<tr class="clickable" data-art="${esc(r.n)}"><td>${esc(r.n)}</td><td class="num">${fmtK(r.ca25)}</td><td class="num">${fmtK(r.ca26)}</td>
+    <td class="num ${r.d<0?'down':'up'}">${fmtK(r.d)}</td><td class="num ${pctClass(r.ca25,r.ca26)}">${pct(r.ca25,r.ca26)}</td></tr>`;
+  const fa25=rows.reduce((p,r)=>p+r.ca25,0), fa26=rows.reduce((p,r)=>p+r.ca26,0);
+  const foot=`<tr><td>Total (${rows.length} articles)</td><td class="num">${fmtK(fa25)}</td><td class="num">${fmtK(fa26)}</td>
+    <td class="num ${fa26-fa25<0?'down':'up'}">${fmtK(fa26-fa25)}</td><td class="num ${pctClass(fa25,fa26)}">${pct(fa25,fa26)}</td></tr>`;
+  return `<div class="panel"><h2>Articles — ${esc(F.cat)} <span class="hint">${rows.length} articles sur le périmètre · cliquer un article pour voir ses magasins · niveau « collection » à venir</span></h2>
+    ${mkTable('tArt',head,rows,rowFn,foot)}</div>`;
+}
+
+/* ---- liste magasins ---- */
+function storesPanel(sc){
+  const show=(F.reg&&(F.g1||F.rep))||F.rep;
+  if(!show) return `<div class="panel"><h2>Magasins</h2><div class="muted">Affinez par secteur + enseigne, ou par vendeur, pour afficher la liste des magasins.</div></div>`;
+  let rows=sc.map(x=>({c:x.s.c,rs:x.s.rs,e:x.s.e,g1:x.s.g1,rep:x.s.rep,ca25:x.a,ca26:x.b,
+    cib:cibleOf(x.s,undefined,'store'), gap:x.b-cibleOf(x.s,undefined,'store')}));
+  if(F.q){const q=F.q.toLowerCase(); rows=rows.filter(r=>(r.rs+' '+r.e+' '+r.c+' '+r.rep).toLowerCase().includes(q));}
+  rows.sort((a,b)=>b.ca26-a.ca26);
+  withEv(rows);
+  const head=`<tr><th data-k="rs">Magasin</th><th data-k="e">Enseigne</th><th data-k="rep">Vendeur</th>
+    <th class="num" data-k="ca25">CA 2025</th><th class="num" data-k="ca26">CA 2026</th><th class="num" data-k="ev">Écart %</th>
+    <th class="num" data-k="cib">Cible</th><th class="num" data-k="gap">Écart à la cible</th></tr>`;
+  const rowFn=r=>`<tr class="clickable" data-store="${r.c}"><td><b>${esc(r.rs)}</b><div class="muted">${r.c}</div></td>
+    <td>${esc(r.e)}</td><td>${esc(r.rep)}</td>
+    <td class="num">${fmtK(r.ca25)}</td><td class="num">${fmtK(r.ca26)}</td>
+    <td class="num ${pctClass(r.ca25,r.ca26)}">${pct(r.ca25,r.ca26)}</td>
+    <td class="num">${fmtEUR(r.cib)}</td>
+    <td class="num ${r.gap<0?'down':'up'}">${fmtK(r.gap)}</td></tr>`;
+  const fs25=rows.reduce((p,r)=>p+r.ca25,0), fs26=rows.reduce((p,r)=>p+r.ca26,0);
+  const fcib=rows.reduce((p,r)=>p+r.cib,0), fgap=rows.reduce((p,r)=>p+r.gap,0);
+  const sfoot=`<tr><td>Total (${rows.length} magasins)</td><td></td><td></td>
+    <td class="num">${fmtK(fs25)}</td><td class="num">${fmtK(fs26)}</td>
+    <td class="num ${pctClass(fs25,fs26)}">${pct(fs25,fs26)}</td>
+    <td class="num">${fmtK(fcib)}</td><td class="num ${fgap<0?'down':'up'}">${fmtK(fgap)}</td></tr>`;
+  const lim=rows.slice(0,200);
+  return `<div class="panel"><h2>Magasins du périmètre <span class="hint">cliquer un magasin pour la fiche détail · tri par CA 2026 décroissant — cliquez un en-tête pour changer · ${rows.length} magasins${rows.length>200?', 200 affichés':''}</span></h2>
+    <div class="toolbar"><input type="text" id="fStore" placeholder="Rechercher un magasin…" value="${esc(F.q)}" style="min-width:260px"></div>
+    ${mkTable('tSt',head,lim,rowFn,sfoot)}
+    <div class="footnote">Cible = max(CA moyen ; seuil top 30 %) des PDV de la même enseigne dans le secteur du magasin — un magasin est toujours comparé à son propre secteur${F.cat?' (catégorie '+esc(F.cat)+' uniquement)':''}.</div></div>`;
+}
+
+/* ---- plan d'action ---- */
+function computeActions(){
+  const acts=[]; const sc=scoped();
+  // référentiel (secteur si filtré, jamais le vendeur)
+  const refAct={};
+  D.stores.forEach(s=>{ if(F.reg&&s.r!==F.reg) return; if(caTot(s)[1]>0) refAct[s.g1]=(refAct[s.g1]||0)+1; });
+  const artG1={};
+  for(const art in D.artStores){
+    for(const e of D.artStores[art]){
+      const s=STMAP[e[0]]; if(!s||e[2]<=0) continue;
+      if(F.reg&&s.r!==F.reg) continue;
+      const m=(artG1[art]=artG1[art]||{}); const g=(m[s.g1]=m[s.g1]||{n:0,ca:0,set:new Set()});
+      g.n++; g.ca+=e[2]; g.set.add(e[0]);
+    }
+  }
+  for(const s of sc){
+    const [a,b]=caTot(s);
+    // C. reconquête
+    if(a>0&&b===0){ acts.push({id:s.c+'|C',s,type:'Reconquête',cls:'b-red',
+      txt:'Plus aucune sortie caisse en 2026 — reprendre contact (CA 2025 : '+fmtEUR(a)+')',eur:a}); continue; }
+    if(b<=0) continue;
+    // A. référencement manquant (2 meilleurs articles absents)
+    const best=[];
+    for(const art in artG1){
+      const g=artG1[art][s.g1]; if(!g||g.set.has(s.c)) continue;
+      const det=g.n/(refAct[s.g1]||1); if(det<PARAMS.det/100) continue;
+      const avg=g.ca/g.n; if(avg<PARAMS.min) continue;
+      best.push({art,avg,det});
+    }
+    best.sort((x,y)=>y.avg-x.avg);
+    best.slice(0,2).forEach(x=>acts.push({id:s.c+'|A|'+x.art,s,type:'Référencement',cls:'b-blue',
+      txt:'Proposer le référencement de « '+x.art+' » — présent dans '+Math.round(x.det*100)+' % des '+s.g1+' comparables',eur:x.avg}));
+    // B. catégorie sous cible (2 plus gros écarts)
+    const m=getCib(s.r)[s.g1]||{}; const cand=[];
+    for(const c in m){ if(c==='') continue;
+      const t=m[c]; const v=s.cm[c]?s26(s.cm[c]):0;
+      if(t>0 && v<t*(1-PARAMS.sous/100) && t-v>=PARAMS.min) cand.push({c,gap:t-v,t,v});
+    }
+    cand.sort((x,y)=>y.gap-x.gap);
+    cand.slice(0,2).forEach(x=>acts.push({id:s.c+'|B|'+x.c,s,type:'Implantation',cls:'b-amber',
+      txt:'Revoir l\'implantation « '+x.c+' » : '+fmtEUR(x.v)+' vs cible '+fmtEUR(x.t),eur:x.gap}));
+    // D. décrochage récent (avril+mai sous N-1 alors que le cumul tient)
+    let p25=0,p26=0;
+    for(const c in s.cm){const v=s.cm[c]; p25+=v[3]+v[4]; p26+=v[8]+v[9];}
+    if(b>=a*0.9 && p25>0 && p26<p25*0.8 && p25-p26>=PARAMS.min)
+      acts.push({id:s.c+'|D',s,type:'Décrochage',cls:'b-gray',
+        txt:'Cumul correct mais avril–mai en chute ('+fmtEUR(p26)+' vs '+fmtEUR(p25)+' en 2025) — visite diagnostic',eur:p25-p26});
+  }
+  acts.sort((x,y)=>y.eur-x.eur);
+  return acts;
+}
+function renderPlan(){
+  const acts=computeActions();
+  const lim=F.rep?10:25;
+  const shown=acts.slice(0,lim);
+  const totEur=acts.reduce((p,a)=>p+a.eur,0);
+  const doneActs=acts.filter(a=>DONE[a.id]);
+  const doneEur=doneActs.reduce((p,a)=>p+a.eur,0);
+  let mgr='';
+  if(!F.rep){
+    const byRep={};
+    acts.forEach(a=>{const r=a.s.rep; const v=(byRep[r]=byRep[r]||{eur:0,n:0,d:0}); v.eur+=a.eur; v.n++; if(DONE[a.id])v.d++;});
+    const rows=Object.entries(byRep).map(([n,v])=>({n,eur:v.eur,nb:v.n,tx:v.n?v.d/v.n:0})).sort((x,y)=>y.eur-x.eur);
+    const head=`<tr><th data-k="n">Vendeur</th><th class="num" data-k="eur">€ en jeu</th><th class="num" data-k="nb">Actions</th><th class="num" data-k="tx">Traitées</th></tr>`;
+    const rowFn=r=>`<tr class="clickable" data-set='${JSON.stringify(["rep",r.n]).replace(/'/g,"&#39;")}'><td><b>${esc(r.n)}</b></td><td class="num">${fmtK(r.eur)}</td><td class="num">${r.nb}</td><td class="num">${Math.round(r.tx*100)} %</td></tr>`;
+    mgr=`<div class="panel"><h2>Vue manager — € en jeu par vendeur <span class="hint">cliquer un vendeur pour ouvrir sa tournée</span></h2>${mkTable('tPlanRep',head,rows,rowFn)}</div>`;
+  }
+  const rowA=(a,i)=>`<tr${DONE[a.id]?' style="opacity:.45"':''}><td class="num">${i+1}</td>
+    <td><b>${esc(a.s.rs)}</b><div class="muted">${esc(a.s.e)} · ${esc(a.s.r)}${F.rep?'':' · '+esc(a.s.rep)}</div></td>
+    <td><span class="badge ${a.cls}">${a.type}</span></td>
+    <td>${esc(a.txt)}</td><td class="num"><b>${fmtK(a.eur)}</b></td>
+    <td style="text-align:center"><input type="checkbox" data-done="${esc(a.id)}"${DONE[a.id]?' checked':''} title="Marquer comme traité"></td></tr>`;
+  document.getElementById('main').innerHTML=`
+    <div class="cards">
+      <div class="card"><div class="lbl">Actions identifiées</div><div class="val">${acts.length}</div></div>
+      <div class="card"><div class="lbl">€ en jeu (total périmètre)</div><div class="val">${fmtK(totEur)}</div></div>
+      <div class="card"><div class="lbl">Actions traitées</div><div class="val">${doneActs.length}</div>
+        <div class="delta up">${fmtK(doneEur)} adressés</div></div>
+      <div class="card"><div class="lbl">Taux de traitement</div><div class="val">${acts.length?Math.round(doneActs.length/acts.length*100):0} %</div></div>
+    </div>
+    ${mgr}
+    <div class="panel"><h2>${F.rep?'Ma tournée — '+esc(F.rep):'Top actions du périmètre'} <span class="hint">priorisées par € en jeu · cocher = traité (mémorisé sur ce poste)</span>
+      <button class="rst" style="float:right" onclick="window.print()">Imprimer la tournée</button></h2>
+      <table><thead><tr><th>#</th><th>Magasin</th><th>Type</th><th>Action proposée</th><th class="num">€ en jeu</th><th>Fait</th></tr></thead>
+      <tbody>${shown.map(rowA).join('')}</tbody></table>
+      <div class="footnote">Règles : Référencement = article présent dans ≥ <input type="number" data-p="det" value="${PARAMS.det}" style="width:52px"> % des magasins comparables de l'enseigne et absent ici (€ = CA moyen des magasins implantés) · Implantation = catégorie ≥ <input type="number" data-p="sous" value="${PARAMS.sous}" style="width:52px"> % sous la cible · seuil de matérialité <input type="number" data-p="min" value="${PARAMS.min}" style="width:64px"> € · Reconquête = magasin sans CA 2026 · Décrochage = avril–mai < 80 % de N-1 malgré un cumul tenu. ${acts.length>lim?acts.length-lim+' actions supplémentaires masquées (affinez les filtres).':''}</div>
+    </div>`;
+  document.querySelectorAll('[data-done]').forEach(cb=>cb.onchange=()=>{
+    if(cb.checked) DONE[cb.dataset.done]=Date.now(); else delete DONE[cb.dataset.done];
+    saveDone(); render();});
+  document.querySelectorAll('[data-p]').forEach(inp=>inp.onchange=()=>{
+    PARAMS[inp.dataset.p]=parseFloat(inp.value)||PARAMS[inp.dataset.p]; render();});
+}
+
+/* ---- fiche article ---- */
+const STMAP={}; D.stores.forEach(s=>STMAP[s.c]=s);
+function openArticle(art){
+  const lst=D.artStores[art]||[];
+  const rows=[];
+  for(const [code,a,b] of lst){
+    const s=STMAP[code]; if(!s) continue;
+    if(F.g1&&s.g1!==F.g1) continue; if(F.reg&&s.r!==F.reg) continue; if(F.rep&&s.rep!==F.rep) continue;
+    rows.push({c:code,rs:s.rs,e:s.e,rep:s.rep,ca25:a,ca26:b});
+  }
+  // cible article : top 35 % du CA 2026, sans tenir compte du filtre vendeur
+  const cibList=[];
+  for(const [code,a,b] of lst){ const s=STMAP[code]; if(!s) continue;
+    if(F.g1&&s.g1!==F.g1) continue; if(F.reg&&s.r!==F.reg) continue; cibList.push(b); }
+  const cib=cible(cibList);
+  rows.forEach(r=>r.gap=r.ca26-cib);
+  withEv(rows); rows.sort((x,y)=>y.ca26-x.ca26);
+  const t25=rows.reduce((p,r)=>p+r.ca25,0), t26=rows.reduce((p,r)=>p+r.ca26,0);
+  const n25=rows.filter(r=>r.ca25>0).length, n26=rows.filter(r=>r.ca26>0).length;
+  const scopeAct=scoped().map(s=>caOf(s)).filter(x=>x[1]>0).length;
+  const det=scopeAct? n26/scopeAct : 0;
+  const badge=r=> r.ca25>0&&r.ca26===0 ? '<span class="badge b-red">Perdu</span>'
+    : (r.ca25===0&&r.ca26>0 ? '<span class="badge b-blue">Nouveau</span>' : '');
+  const head=`<tr><th data-k="rs">Magasin</th><th data-k="e">Enseigne</th><th data-k="rep">Vendeur</th>
+    <th class="num" data-k="ca25">CA 2025</th><th class="num" data-k="ca26">CA 2026</th><th class="num" data-k="ev">Écart %</th>
+    <th class="num" data-k="gap">Écart à la cible</th><th>Statut</th></tr>`;
+  const rowFn=r=>`<tr class="clickable" data-store="${r.c}"><td><b>${esc(r.rs)}</b><div class="muted">${r.c}</div></td>
+    <td>${esc(r.e)}</td><td>${esc(r.rep)}</td>
+    <td class="num">${fmtK(r.ca25)}</td><td class="num">${fmtK(r.ca26)}</td>
+    <td class="num ${pctClass(r.ca25,r.ca26)}">${pct(r.ca25,r.ca26)}</td>
+    <td class="num ${r.gap<0?'down':'up'}">${fmtK(r.gap)}</td><td>${badge(r)}</td></tr>`;
+  const foot=`<tr><td>Total (${rows.length} magasins)</td><td></td><td></td>
+    <td class="num">${fmtK(t25)}</td><td class="num">${fmtK(t26)}</td>
+    <td class="num ${pctClass(t25,t26)}">${pct(t25,t26)}</td><td></td><td></td></tr>`;
+  document.getElementById('modalInner').innerHTML=`
+    <button class="close" id="mClose">Fermer ✕</button>
+    <h2 style="font-size:17px">${esc(art)} <span class="muted">· ${esc(D.artCat[art]||'')}</span></h2>
+    <div class="cards" style="margin-top:14px">
+      <div class="card"><div class="lbl">CA 2026</div><div class="val">${fmtK(t26)}</div>
+        <div class="delta ${pctClass(t25,t26)}">${pct(t25,t26)} vs 2025</div></div>
+      <div class="card"><div class="lbl">Magasins implantés 2026</div><div class="val">${n26}</div>
+        <div class="delta muted">${n25} en 2025</div></div>
+      <div class="card"><div class="lbl">Taux de détention</div><div class="val">${(det*100).toFixed(0)} %</div>
+        <div class="delta muted">des ${scopeAct} PDV actifs du périmètre</div></div>
+      <div class="card"><div class="lbl">CA moyen / magasin implanté</div><div class="val">${n26?fmtEUR(t26/n26):'—'}</div></div>
+      <div class="card"><div class="lbl">Cible</div><div class="val">${fmtEUR(cib)}</div></div>
+    </div>
+    <div class="panel" style="margin-bottom:0"><h2>Magasins <span class="hint">cliquer un magasin pour sa fiche complète · tri par CA 2026</span></h2>
+      ${mkTable('tArtSt',head,rows,rowFn,foot)}</div>`;
+  document.getElementById('modal').style.display='block';
+  document.getElementById('mClose').onclick=()=>{document.getElementById('modal').style.display='none';};
+}
+
+/* ---- fiche magasin ---- */
+function openStore(code){
+  const s=D.stores.find(x=>x.c===code); if(!s) return;
+  // cibles : même enseigne, sur le périmètre filtré (hors filtre catégorie pour la table par catégorie)
+  const peers=D.stores.filter(x=>x.g1===s.g1&&x.r===s.r);
+  const [sa,sb]=caOf(s);
+  const cibTot=cibleOf(s,undefined,'store');
+  // par catégorie
+  const cats=new Set(Object.keys(s.cm)); peers.forEach(p=>Object.keys(p.cm).forEach(c=>cats.add(c)));
+  const rows=withEv([...cats].map(c=>{
+    const v=s.cm[c]||new Array(10).fill(0);
+    const cib=cibleOf(s,c,'store');
+    const ca25c=s25(v), ca26c=s26(v);
+    return {n:c,ca25:ca25c,ca26:ca26c,cib,gap:ca26c-cib};
+  }).filter(r=>r.ca25+r.ca26+r.cib>0).sort((a,b)=>b.ca26-a.ca26));
+  const head=`<tr><th data-k="n">Catégorie</th><th class="num" data-k="ca25">CA 2025</th><th class="num" data-k="ca26">CA 2026</th><th class="num" data-k="ev">Écart %</th><th class="num" data-k="cib">Cible</th><th class="num" data-k="gap">Écart à la cible</th><th></th></tr>`;
+  const rowFn=r=>`<tr><td><b>${esc(r.n)}</b></td><td class="num">${fmtK(r.ca25)}</td><td class="num">${fmtK(r.ca26)}</td>
+    <td class="num ${pctClass(r.ca25,r.ca26)}">${pct(r.ca25,r.ca26)}</td>
+    <td class="num">${fmtEUR(r.cib)}</td><td class="num ${r.gap<0?'down':'up'}">${fmtK(r.gap)}</td>
+    <td><span class="badge b-blue" data-cat="${esc(r.n)}">voir mensuel</span></td></tr>`;
+  document.getElementById('modalInner').innerHTML=`
+    <button class="close" id="mClose">Fermer ✕</button>
+    <h2 style="font-size:17px">${esc(s.rs)} <span class="muted">· ${esc(s.e)} · ${esc(s.r)} · ${esc(s.rep)} · ${s.c}</span></h2>
+    <div class="cards" style="margin-top:14px">
+      <div class="card"><div class="lbl">CA 2025</div><div class="val">${fmtK(sa)}</div></div>
+      <div class="card"><div class="lbl">CA 2026</div><div class="val">${fmtK(sb)}</div>
+        <div class="delta ${pctClass(sa,sb)}">${pct(sa,sb)}</div></div>
+      <div class="card"><div class="lbl">Cible (${esc(s.g1)} · secteur ${esc(s.r)})</div><div class="val">${fmtEUR(cibTot)}</div>
+        <div class="delta ${sb-cibTot<0?'down':'up'}">${fmtK(sb-cibTot)} vs cible</div></div>
+    </div>
+    <div class="panel" style="margin-bottom:14px"><h2 id="mChartTitle">Mensuel — toutes catégories</h2>
+      <div class="chart-box" style="height:240px"><canvas id="chStore"></canvas></div></div>
+    <div class="panel" style="margin-bottom:0"><h2>Par catégorie — vs N-1 et vs cible <span class="hint">cible ${esc(s.g1)} du secteur ${esc(s.r)} (${peers.length} PDV) = max(moyenne ; seuil top 30 %), par catégorie</span></h2>
+      ${mkTable('tStCat',head,rows,rowFn,(()=>{
+        const f25=rows.reduce((p,r)=>p+r.ca25,0), f26=rows.reduce((p,r)=>p+r.ca26,0);
+        const fc=rows.reduce((p,r)=>p+r.cib,0), fg=rows.reduce((p,r)=>p+r.gap,0);
+        return `<tr><td>Total</td><td class="num">${fmtK(f25)}</td><td class="num">${fmtK(f26)}</td>
+          <td class="num ${pctClass(f25,f26)}">${pct(f25,f26)}</td>
+          <td class="num">${fmtK(fc)}</td><td class="num ${fg<0?'down':'up'}">${fmtK(fg)}</td><td></td></tr>`;})())}</div>`;
+  document.getElementById('modal').style.display='block';
+  document.getElementById('mClose').onclick=()=>{document.getElementById('modal').style.display='none';};
+  const drawMonthly=(cat)=>{
+    charts=charts.filter(c=>{if(c.canvas&&c.canvas.id==='chStore'){c.destroy();return false;}return true;});
+    let m=new Array(10).fill(0);
+    if(cat){ m=(s.cm[cat]||m).slice(); }
+    else for(const c in s.cm) for(let i=0;i<10;i++) m[i]+=s.cm[c][i];
+    // cible au mois près : seuil top 35 % du CA de CHAQUE mois 2026 parmi les magasins de l'enseigne
+    const cibM=[0,1,2,3,4].map(i=>cible(peers.map(p=>{
+      if(cat) return p.cm[cat]? p.cm[cat][5+i] : 0;
+      let t=0; for(const c in p.cm) t+=p.cm[c][5+i]; return t;
+    })));
+    document.getElementById('mChartTitle').textContent='Mensuel — '+(cat||'toutes catégories');
+    const mLbl=MOIS.map((mo,i)=>[mo, m[i]? ((m[5+i]/m[i]-1)*100).toLocaleString('fr-FR',{maximumFractionDigits:1,signDisplay:'always'})+' %' : (m[5+i]?'nouveau':'—')]);
+    mkChart('chStore',{data:{labels:mLbl,datasets:[
+      {type:'bar',label:'2025',data:m.slice(0,5),backgroundColor:'#94a3b8'},
+      {type:'bar',label:'2026',data:m.slice(5),backgroundColor:'#2563eb'},
+      {type:'line',label:'Cible mensuelle ('+esc(s.g1)+' · '+esc(s.r)+')',data:cibM,borderColor:'#d97706',borderDash:[6,4],pointRadius:3}]},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{tooltip:{callbacks:{label:c=>c.dataset.label+' : '+fmtEUR(c.parsed.y)}}},
+        scales:{y:{ticks:{callback:v=>fmtK(v)}}}}});
+  };
+  drawMonthly(F.cat||null);
+  setTimeout(()=>document.querySelectorAll('#tStCat [data-cat]').forEach(b=>b.onclick=e=>{e.stopPropagation();drawMonthly(b.dataset.cat);}),0);
+}
+
+/* ---- init ---- */
+const fG1=document.getElementById('fG1'), fCat=document.getElementById('fCat'), fReg=document.getElementById('fReg'), fRep=document.getElementById('fRep');
+[...new Set(D.stores.map(s=>s.g1))].sort().forEach(g=>fG1.insertAdjacentHTML('beforeend',`<option value="${esc(g)}">${esc(g)}</option>`));
+[...new Set(D.stores.flatMap(s=>Object.keys(s.cm)))].filter(c=>c!=='(vide)').sort().forEach(c=>fCat.insertAdjacentHTML('beforeend',`<option value="${esc(c)}">${esc(c)}</option>`));
+[...new Set(D.stores.map(s=>s.r))].sort().forEach(r=>fReg.insertAdjacentHTML('beforeend',`<option value="${esc(r)}">${esc(r)}</option>`));
+fillReps();
+fG1.onchange=e=>{F.g1=e.target.value;render();};
+fCat.onchange=e=>{F.cat=e.target.value;render();};
+fReg.onchange=e=>{F.reg=e.target.value;F.rep='';fillReps();render();};
+fRep.onchange=e=>{F.rep=e.target.value;render();};
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-cm]');if(b){CHART_MODE=b.dataset.cm;render();}});
+document.getElementById('vAna').onclick=()=>{VIEW='ana';render();};
+document.getElementById('vPlan').onclick=()=>{VIEW='plan';render();};
+document.getElementById('fReset').onclick=()=>{F.g1='';F.cat='';F.reg='';F.rep='';F.q='';syncSelects();render();};
+document.addEventListener('input',e=>{
+  if(e.target.id==='fStore'){F.q=e.target.value;render();
+    setTimeout(()=>{const el=document.getElementById('fStore');if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length);}},0);}
+});
+document.getElementById('modal').onclick=e=>{if(e.target.id==='modal')document.getElementById('modal').style.display='none';};
+document.addEventListener('keydown',e=>{if(e.key==='Escape')document.getElementById('modal').style.display='none';});
+render();
+</script>
+</body>
+</html>

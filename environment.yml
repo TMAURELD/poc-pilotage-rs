@@ -1,0 +1,9 @@
+# Dépendances de l'app Streamlit in Snowflake.
+# streamlit, snowflake-snowpark-python et pandas sont déjà fournis par
+# l'environnement SiS : rien d'obligatoire ici. Fichier gardé pour expliciter
+# le socle et faciliter d'éventuels ajouts (channel Snowflake uniquement).
+name: sf_env
+channels:
+  - snowflake
+dependencies:
+  - pandas
