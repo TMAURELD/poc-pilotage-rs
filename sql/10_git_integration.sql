@@ -30,7 +30,7 @@ CREATE OR REPLACE API INTEGRATION github_api_integration
 CREATE OR REPLACE GIT REPOSITORY poc_rs_repo
   API_INTEGRATION = github_api_integration
   GIT_CREDENTIALS = github_secret
-  ORIGIN = 'https://github.com/TMAURELD/poc-pilotage-rd.git';
+  ORIGIN = 'https://github.com/TMAURELD/poc-pilotage-rs.git';
 
 -- 4) Récupérer le contenu et vérifier
 ALTER GIT REPOSITORY poc_rs_repo FETCH;
