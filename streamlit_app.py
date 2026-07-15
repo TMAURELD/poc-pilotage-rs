@@ -13,28 +13,12 @@ Fichiers à joindre à l'app (même stage) :
 """
 
 import json
+import os
 from collections import defaultdict
+from pathlib import Path
 
 import streamlit as st
 import streamlit.components.v1 as components
-
-# Récupération de la session Snowflake, avec repli si l'API varie selon la
-# version du runtime Streamlit in Snowflake.
-try:
-    from snowflake.snowpark.context import get_active_session
-except Exception:  # pragma: no cover
-    get_active_session = None
-
-
-def get_session():
-    """Retourne une session Snowpark active (méthode standard + repli)."""
-    if get_active_session is not None:
-        try:
-            return get_active_session()
-        except Exception:
-            pass
-    # Repli : connexion Streamlit par défaut définie dans le runtime SiS
-    return st.connection("snowflake").session()
 
 # ---------------------------------------------------------------------------
 # CONFIG
@@ -57,7 +41,7 @@ SELECT
     CATEGORIE,
     ANNEE,
     MOIS,
-    SUM(PPGC_MONTANT_TTC)  AS MONTANT,
+    SUM(MNT_SORTIE_SAISSE + PPGC_MONTANT_TTC) AS MONTANT,
     SUM(QTE_SORTIE_SAISSE) AS QUANTITE
 FROM DLK_POC_01."2 - Transfo (Staging)"."Transfo_BI_SortiesCaisses"
 WHERE ANNEE IN (2025, 2026)
@@ -173,8 +157,8 @@ def build_D(rows):
 # ---------------------------------------------------------------------------
 @st.cache_data(ttl=3600, show_spinner="Lecture des sorties caisses dans Snowflake…")
 def load_D():
-    session = get_session()
-    df = session.sql(SQL_QUERY).to_pandas()
+    conn = st.connection("snowflake", ttl=os.getenv("SNOWFLAKE_CONNECTION_TTL"))
+    df = conn.query(SQL_QUERY)
     df.columns = [c.lower() for c in df.columns]
     rows = df.to_dict("records")
     if APPLY_PERIMETER:
@@ -182,10 +166,14 @@ def load_D():
     return build_D(rows), len(rows)
 
 
+# Résolution du chemin du template HTML relativement au script
+_SCRIPT_DIR = Path(__file__).resolve().parent
+_TEMPLATE_PATH = _SCRIPT_DIR / "dashboard_template.html"
+
+
 def render():
     D, nrows = load_D()
-    with open("dashboard_template.html", encoding="utf-8") as f:
-        template = f.read()
+    template = _TEMPLATE_PATH.read_text(encoding="utf-8")
     blob = json.dumps(D, ensure_ascii=False, separators=(",", ":"))
     html = template.replace("/*__DASHBOARD_DATA__*/", blob)
     components.html(html, height=1500, scrolling=True)
